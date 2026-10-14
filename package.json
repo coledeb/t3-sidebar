@@ -1,0 +1,90 @@
+{
+  "name": "t3-sidebar",
+  "displayName": "T3 Sidebar",
+  "description": "The T3 Code web app in a Cursor/VS Code sidebar, with working copy and paste.",
+  "version": "0.1.3",
+  "publisher": "coledeb",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "t3Sidebar",
+          "title": "T3 Code",
+          "icon": "media/t3.svg"
+        }
+      ]
+    },
+    "views": {
+      "t3Sidebar": [
+        {
+          "id": "t3Sidebar.view",
+          "type": "webview",
+          "name": "T3 Code"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "t3Sidebar.reload",
+        "title": "T3 Sidebar: Reload",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "t3Sidebar.pair",
+        "title": "T3 Sidebar: Pair Again"
+      },
+      {
+        "command": "t3Sidebar.showLog",
+        "title": "T3 Sidebar: Show Log"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "t3Sidebar.reload",
+          "when": "view == t3Sidebar.view",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "T3 Sidebar",
+      "properties": {
+        "t3Sidebar.serverUrl": {
+          "type": "string",
+          "default": "",
+          "description": "T3 Code server URL. Leave empty to use the running T3 Code desktop app's server (from ~/.t3/userdata/server-runtime.json), falling back to http://127.0.0.1:3773."
+        },
+        "t3Sidebar.proxyPort": {
+          "type": "number",
+          "default": 37730,
+          "description": "First local port to try for the paste-enabling relay. The next 9 ports are tried if it is busy (for example, a second Cursor window)."
+        },
+        "t3Sidebar.openOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Reveal the T3 Code view when the window opens."
+        },
+        "t3Sidebar.autoPair": {
+          "type": "boolean",
+          "default": true,
+          "description": "When not signed in, issue a short-lived pairing token with the t3 CLI and sign in automatically."
+        },
+        "t3Sidebar.cliPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the t3 CLI. Leave empty to search ~/.t3/bin/t3, /opt/homebrew/bin/t3, /usr/local/bin/t3 and PATH."
+        }
+      }
+    }
+  }
+}
