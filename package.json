@@ -2,7 +2,7 @@
   "name": "t3-sidebar",
   "displayName": "T3 Sidebar",
   "description": "The T3 Code web app in a Cursor/VS Code sidebar, with working copy and paste.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "publisher": "coledeb",
   "private": true,
   "license": "UNLICENSED",
@@ -73,6 +73,11 @@
           "type": "boolean",
           "default": true,
           "description": "Reveal the T3 Code view when the window opens."
+        },
+        "t3Sidebar.selectOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "When openOnStartup is off, still make T3 Code the active view in its sidebar at startup (without showing it), so opening that sidebar shows T3 rather than another view."
         },
         "t3Sidebar.autoPair": {
           "type": "boolean",

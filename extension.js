@@ -243,7 +243,49 @@ async function activate(context) {
   if (config().get("openOnStartup", true)) {
     await vscode.commands.executeCommand(`${VIEW_ID}.focus`);
     await vscode.commands.executeCommand("workbench.action.focusActiveEditorGroup");
+  } else if (config().get("selectOnStartup", true)) {
+    await selectViewWithoutShowing();
   }
+}
+
+// Layout parts that can host the view, with the command that hides each one.
+const LAYOUT_PARTS = [
+  ["auxiliaryBarVisible", "workbench.action.toggleAuxiliaryBar"],
+  ["sideBarVisible", "workbench.action.toggleSidebarVisibility"],
+  ["panelVisible", "workbench.action.togglePanel"],
+];
+
+function layoutState() {
+  return Promise.all(
+    LAYOUT_PARTS.map(([key]) =>
+      Promise.resolve(vscode.commands.executeCommand("getContextKeyValue", key)).catch(
+        () => undefined,
+      ),
+    ),
+  );
+}
+
+/**
+ * Make T3 the active view in its container, so opening that sidebar later
+ * shows T3 rather than whatever Cursor picked, then hide any sidebar or panel
+ * this revealed. Relies on Cursor's internal getContextKeyValue command; if it
+ * isn't available, does nothing rather than leave a sidebar open.
+ */
+async function selectViewWithoutShowing() {
+  const before = await layoutState();
+  if (before.some((visible) => typeof visible !== "boolean")) {
+    log("can't read the layout, so not selecting the T3 view at startup");
+    return;
+  }
+  await vscode.commands.executeCommand(`${VIEW_ID}.focus`);
+  const after = await layoutState();
+  for (let i = 0; i < LAYOUT_PARTS.length; i++) {
+    if (before[i] === false && after[i] === true) {
+      await vscode.commands.executeCommand(LAYOUT_PARTS[i][1]);
+    }
+  }
+  await vscode.commands.executeCommand("workbench.action.focusActiveEditorGroup");
+  log(`selected the T3 view at startup without showing it (layout before=${before} after=${after})`);
 }
 
 function deactivate() {}
