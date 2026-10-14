@@ -244,48 +244,92 @@ async function activate(context) {
     await vscode.commands.executeCommand(`${VIEW_ID}.focus`);
     await vscode.commands.executeCommand("workbench.action.focusActiveEditorGroup");
   } else if (config().get("selectOnStartup", true)) {
-    await selectViewWithoutShowing();
+    await selectViewIfAlreadyShowing(context);
   }
 }
 
-// Layout parts that can host the view, with the command that hides each one.
-const LAYOUT_PARTS = [
-  ["auxiliaryBarVisible", "workbench.action.toggleAuxiliaryBar"],
-  ["sideBarVisible", "workbench.action.toggleSidebarVisibility"],
-  ["panelVisible", "workbench.action.togglePanel"],
-];
+// Where a view container sits: Cursor's ViewContainerLocation values.
+const PARTS = {
+  0: { name: "sidebar", hiddenKey: "workbench.sideBar.hidden" },
+  1: { name: "panel", hiddenKey: "workbench.panel.hidden" },
+  2: { name: "secondary sidebar", hiddenKey: "workbench.auxiliaryBar.hidden" },
+};
+const DEFAULT_CONTAINER_ID = "workbench.view.extension.t3Sidebar";
 
-function layoutState() {
-  return Promise.all(
-    LAYOUT_PARTS.map(([key]) =>
-      Promise.resolve(vscode.commands.executeCommand("getContextKeyValue", key)).catch(
-        () => undefined,
-      ),
-    ),
-  );
+/** Reads keys from one of Cursor's state databases; {} if unreadable. */
+function readCursorState(dbPath, keys) {
+  return new Promise((resolve) => {
+    if (!dbPath || !fs.existsSync(dbPath)) return resolve({});
+    const list = keys.map((key) => `'${key.replaceAll("'", "''")}'`).join(",");
+    execFile(
+      "/usr/bin/sqlite3",
+      ["-readonly", "-json", dbPath, `select key, value from ItemTable where key in (${list});`],
+      { timeout: 5000 },
+      (error, stdout) => {
+        if (error) {
+          log(`couldn't read ${dbPath}: ${error.message}`);
+          return resolve({});
+        }
+        try {
+          const rows = stdout.trim() === "" ? [] : JSON.parse(stdout);
+          resolve(Object.fromEntries(rows.map((row) => [row.key, row.value])));
+        } catch {
+          resolve({});
+        }
+      },
+    );
+  });
+}
+
+/** Which layout part holds the T3 view, per Cursor's saved view customizations. */
+function viewPart(customizationsJson) {
+  let customizations = {};
+  try {
+    customizations = JSON.parse(customizationsJson ?? "{}");
+  } catch {
+    // Treat unreadable customizations as none.
+  }
+  const containerId = customizations.viewLocations?.[VIEW_ID] ?? DEFAULT_CONTAINER_ID;
+  const moved = customizations.viewContainerLocations?.[containerId];
+  if (typeof moved === "number") return PARTS[moved];
+  if (containerId.startsWith("workbench.views.service.auxiliarybar.")) return PARTS[2];
+  if (containerId.startsWith("workbench.views.service.panel.")) return PARTS[1];
+  return PARTS[0];
 }
 
 /**
- * Make T3 the active view in its container, so opening that sidebar later
- * shows T3 rather than whatever Cursor picked, then hide any sidebar or panel
- * this revealed. Relies on Cursor's internal getContextKeyValue command; if it
- * isn't available, does nothing rather than leave a sidebar open.
+ * If the sidebar (or panel) holding T3 was open when Cursor last quit, it is
+ * open again now, and Cursor will have switched it to its own agent view on
+ * the way out. Switch it back to T3. A closed sidebar is left alone: Cursor
+ * keeps T3 selected in that case, and focusing would open it.
+ *
+ * Reads Cursor's saved layout from its state databases (state at last quit).
  */
-async function selectViewWithoutShowing() {
-  const before = await layoutState();
-  if (before.some((visible) => typeof visible !== "boolean")) {
-    log("can't read the layout, so not selecting the T3 view at startup");
+async function selectViewIfAlreadyShowing(context) {
+  const globalDb = path.join(path.dirname(context.globalStorageUri.fsPath), "state.vscdb");
+  const workspaceDb = context.storageUri
+    ? path.join(path.dirname(context.storageUri.fsPath), "state.vscdb")
+    : null;
+  if (workspaceDb === null) {
+    log("no workspace layout to read, so not selecting the T3 view at startup");
+    return;
+  }
+  const keys = ["views.customizations", ...Object.values(PARTS).map((part) => part.hiddenKey)];
+  const [globalState, workspaceState] = await Promise.all([
+    readCursorState(globalDb, keys),
+    readCursorState(workspaceDb, keys),
+  ]);
+  const part = viewPart(
+    workspaceState["views.customizations"] ?? globalState["views.customizations"],
+  );
+  const hidden = workspaceState[part.hiddenKey];
+  if (hidden !== "false") {
+    log(`T3 is in the ${part.name}, which is ${hidden === "true" ? "closed" : "unknown"}; leaving it`);
     return;
   }
   await vscode.commands.executeCommand(`${VIEW_ID}.focus`);
-  const after = await layoutState();
-  for (let i = 0; i < LAYOUT_PARTS.length; i++) {
-    if (before[i] === false && after[i] === true) {
-      await vscode.commands.executeCommand(LAYOUT_PARTS[i][1]);
-    }
-  }
   await vscode.commands.executeCommand("workbench.action.focusActiveEditorGroup");
-  log(`selected the T3 view at startup without showing it (layout before=${before} after=${after})`);
+  log(`T3 is in the ${part.name}, which is open; selected the T3 view`);
 }
 
 function deactivate() {}
