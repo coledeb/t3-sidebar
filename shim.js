@@ -118,9 +118,36 @@
 
   const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
 
+  // Shortcuts that belong to the editor, not T3 (t3Sidebar.editorShortcuts).
+  // Keystrokes inside this iframe never reach the editor, so hand them over.
+  const EDITOR_SHORTCUTS = new Set(__T3SB_EDITOR_SHORTCUTS__);
+
+  function shortcutOf(event) {
+    const parts = [];
+    if (event.metaKey) parts.push("cmd");
+    if (event.ctrlKey) parts.push("ctrl");
+    if (event.altKey) parts.push("alt");
+    if (event.shiftKey) parts.push("shift");
+    const code = event.code;
+    const key = code.startsWith("Key")
+      ? code.slice(3).toLowerCase()
+      : code.startsWith("Digit")
+        ? code.slice(5)
+        : event.key.toLowerCase();
+    parts.push(key);
+    return parts.join("+");
+  }
+
   window.addEventListener(
     "keydown",
     (event) => {
+      const shortcut = shortcutOf(event);
+      if (EDITOR_SHORTCUTS.has(shortcut)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        window.parent.postMessage({ type: "t3sb:shortcut", shortcut }, "*");
+        return;
+      }
       const modifier = isMac
         ? event.metaKey && !event.ctrlKey
         : event.ctrlKey && !event.metaKey;

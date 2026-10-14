@@ -38,6 +38,17 @@ const log = (line) => output?.appendLine(`${new Date().toISOString()} ${line}`);
 
 const config = () => vscode.workspace.getConfiguration("t3Sidebar");
 
+/** Shortcut ("cmd+shift+p") to editor command id, normalized to lowercase. */
+function editorShortcuts() {
+  const configured = config().get("editorShortcuts", {});
+  return Object.fromEntries(
+    Object.entries(configured).map(([shortcut, command]) => [
+      shortcut.toLowerCase().replace(/\s+/g, ""),
+      command,
+    ]),
+  );
+}
+
 function resolveTarget() {
   const configured = config().get("serverUrl", "").trim();
   if (configured !== "") return new URL(configured);
@@ -166,6 +177,11 @@ class T3ViewProvider {
       this.view?.webview.postMessage({ type: "host:clipboard-text", id: message.id, text });
     } else if (message?.type === "t3sb:clipboard-write" && typeof message.text === "string") {
       await vscode.env.clipboard.writeText(message.text);
+    } else if (message?.type === "t3sb:shortcut" && typeof message.shortcut === "string") {
+      const command = editorShortcuts()[message.shortcut];
+      if (typeof command === "string" && command !== "") {
+        await vscode.commands.executeCommand(command);
+      }
     }
   }
 
@@ -192,7 +208,7 @@ class T3ViewProvider {
     const data = event.data || {};
     if (event.source === frame.contentWindow) {
       if (event.origin !== ORIGIN) return;
-      if (data.type === "t3sb:clipboard-read" || data.type === "t3sb:clipboard-write") {
+      if (data.type === "t3sb:clipboard-read" || data.type === "t3sb:clipboard-write" || data.type === "t3sb:shortcut") {
         vscode.postMessage(data);
       }
       return;
@@ -219,7 +235,10 @@ async function activate(context) {
   const jar = new CookieJar(await context.secrets.get(JAR_SECRET), (serialized) => {
     void context.secrets.store(JAR_SECRET, serialized);
   });
-  const shim = fs.readFileSync(path.join(context.extensionPath, "shim.js"), "utf8");
+  const shimSource = fs.readFileSync(path.join(context.extensionPath, "shim.js"), "utf8");
+  // Read per request so shortcut changes apply on the next reload.
+  const shim = () =>
+    shimSource.replace("__T3SB_EDITOR_SHORTCUTS__", JSON.stringify(Object.keys(editorShortcuts())));
   const relay = new Relay({ getTarget: resolveTarget, jar, shim, log });
   try {
     await relay.start(config().get("proxyPort", 37730));

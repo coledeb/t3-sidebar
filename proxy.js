@@ -94,7 +94,7 @@ class Relay {
    * @param {object} options
    * @param {() => URL} options.getTarget  T3 server origin to forward to.
    * @param {CookieJar} options.jar
-   * @param {string} options.shim          JavaScript injected into HTML pages.
+   * @param {() => string} options.shim    JavaScript injected into HTML pages.
    * @param {(line: string) => void} [options.log]
    */
   constructor({ getTarget, jar, shim, log }) {
@@ -200,7 +200,7 @@ class Relay {
           "content-type": "text/javascript; charset=utf-8",
           "cache-control": "no-store",
         })
-        .end(this.shim);
+        .end(this.shim());
       return;
     }
     url.searchParams.delete(LAUNCH_PARAM);
