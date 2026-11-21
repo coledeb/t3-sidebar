@@ -2,7 +2,7 @@
   "name": "t3-sidebar",
   "displayName": "T3 Sidebar",
   "description": "The T3 Code web app in a Cursor/VS Code sidebar, with working copy and paste.",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "publisher": "coledeb",
   "private": true,
   "license": "UNLICENSED",
@@ -87,7 +87,7 @@
         "t3Sidebar.cliPath": {
           "type": "string",
           "default": "",
-          "description": "Path to the t3 CLI. Leave empty to search ~/.t3/bin/t3, /opt/homebrew/bin/t3, /usr/local/bin/t3 and PATH."
+          "description": "Path to the t3 CLI. Leave empty to search ~/.t3/bin/t3 (t3.cmd on Windows), /opt/homebrew/bin/t3, /usr/local/bin/t3 and PATH."
         },
         "t3Sidebar.editorShortcuts": {
           "type": "object",

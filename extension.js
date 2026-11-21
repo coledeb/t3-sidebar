@@ -64,11 +64,19 @@ function resolveTarget() {
   return new URL(DEFAULT_SERVER_URL);
 }
 
+// Windows: the t3 CLI is a .cmd shim, which execFile can't launch directly.
+// Run it through cmd.exe with every argument quoted (labels contain spaces).
+function execCli(cli, args, options, callback) {
+  if (process.platform !== "win32") return execFile(cli, args, options, callback);
+  const line = [cli, ...args].map((arg) => `"${arg}"`).join(" ");
+  return execFile(process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", `"${line}"`], { ...options, windowsVerbatimArguments: true }, callback);
+}
+
 function resolveCli() {
   const configured = config().get("cliPath", "").trim();
   if (configured !== "") return configured.replace(/^~/, os.homedir());
   const candidates = [
-    path.join(os.homedir(), ".t3", "bin", "t3"),
+    path.join(os.homedir(), ".t3", "bin", process.platform === "win32" ? "t3.cmd" : "t3"),
     "/opt/homebrew/bin/t3",
     "/usr/local/bin/t3",
   ];
@@ -106,7 +114,7 @@ function issuePairingToken() {
   const cli = resolveCli();
   log(`issuing pairing token with ${cli}`);
   return new Promise((resolve, reject) => {
-    execFile(
+    execCli(
       cli,
       [
         "auth",
