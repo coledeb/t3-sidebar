@@ -1,6 +1,6 @@
 # T3 Sidebar
 
-The T3 Code web app in a Cursor/VS Code sidebar, with working copy and paste.
+The T3 Code web app in a Cursor/VS Code/Devin side panel, with working copy and paste.
 
 - Opens on startup in its own activity-bar view. Drag it to the secondary sidebar once; Cursor remembers.
 - Signs in automatically the first time by issuing a 5-minute pairing token with the `t3` CLI.
