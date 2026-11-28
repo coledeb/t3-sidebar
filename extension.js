@@ -124,7 +124,7 @@ function issuePairingToken() {
         "--ttl",
         "5m",
         "--label",
-        "T3 Sidebar (Cursor)",
+        "T3 Sidebar",
         ...PAIRING_SCOPES.flatMap((scope) => ["--scope", scope]),
       ],
       { timeout: 30000 },
